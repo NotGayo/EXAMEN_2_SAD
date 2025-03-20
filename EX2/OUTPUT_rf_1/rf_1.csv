@@ -1,0 +1,2 @@
+Params,Score
+"{'criterion': 'gini', 'max_depth': 3, 'min_samples_leaf': 2, 'min_samples_split': 2}",0.9333333333333333

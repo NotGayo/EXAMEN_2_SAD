@@ -1,0 +1,29 @@
+{
+  "preprocessing": {
+    "unique_category_threshold": 10,
+    "missing_values": "impute",
+    "scaling": "mean",
+    "text_process": "tf-idf",
+    "sampling":"undersampling",
+    "drop_features":" "
+  },
+
+  "kNN": {
+    "n_neighbors": [5, 7, 9, 11, 13],
+    "weights": ["uniform"],
+    "metric": ["euclidean"]
+  },
+
+  "decission_tree": {
+    "max_depth": [3],
+    "criterion":["gini"]
+  },
+
+  "random_forest": {
+    "max_depth": [3],
+    "criterion": ["gini"],
+    "min_samples_split":[2],
+    "min_samples_leaf": [2]
+  }
+
+}

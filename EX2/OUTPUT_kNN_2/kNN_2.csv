@@ -1,0 +1,6 @@
+Params,Score
+"{'metric': 'euclidean', 'n_neighbors': 5, 'weights': 'uniform'}",0.926978417266187
+"{'metric': 'euclidean', 'n_neighbors': 7, 'weights': 'uniform'}",0.9055155875299761
+"{'metric': 'euclidean', 'n_neighbors': 9, 'weights': 'uniform'}",0.8857314148681056
+"{'metric': 'euclidean', 'n_neighbors': 11, 'weights': 'uniform'}",0.8706235011990409
+"{'metric': 'euclidean', 'n_neighbors': 13, 'weights': 'uniform'}",0.8613908872901679
