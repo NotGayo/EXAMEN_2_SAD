@@ -1,0 +1,8 @@
+EDITAR LAS VARIABLES DE LAS PRIMERAS LINEAS CON EL NOMBRE DEL ALGORITMO POR UNO QUE NO EXISTA EN LA CARPETA DEL PROYECTO
+EJEMPLO:
+2º decission_tree ->
+  nom_modelo = "dt_2.pkl"
+  nom_modelo_csv = "dt_2.csv"
+  nom_pred_csv = "pred_test_dt_2.csv"
+  nom_carpeta_model = "OUTPUT_dt_2"
+ASI CREAMOS UNA CARPETA OUTPUT APARTE PARA NO MEZCLAR CON EL RESTO DE ALGORITMOS
