@@ -60,11 +60,12 @@ from tqdm import tqdm
 #####################
 ##NOMBRES VAIRABLES##
 #####################
+nom = ("kNN_SPAM")
 
-nom_modelo = "dt_2.pkl"
-nom_modelo_csv = "dt_2.csv"
-nom_pred_csv = "pred_test_dt_2.csv"
-nom_carpeta_model = "OUTPUT_dt_2"
+nom_modelo = nom+".pkl"
+nom_modelo_csv = nom+".csv"
+nom_pred_csv = "pred_test_"+nom+".csv"
+nom_carpeta_model = "OUTPUT_"+nom
 
 
 
