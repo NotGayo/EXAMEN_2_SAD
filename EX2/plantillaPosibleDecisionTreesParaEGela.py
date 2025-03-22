@@ -60,14 +60,12 @@ from tqdm import tqdm
 #####################
 ##NOMBRES VAIRABLES##
 #####################
-nom = ("kNN_SPAM")
+nom = ("knn_v2_comp")
 
-nom_modelo = nom+".pkl"
-nom_modelo_csv = nom+".csv"
-nom_pred_csv = "pred_test_"+nom+".csv"
-nom_carpeta_model = "OUTPUT_"+nom
-
-
+nom_modelo = nom + ".pkl"
+nom_modelo_csv = nom + ".csv"
+nom_pred_csv = "pred_test_" + nom + ".csv"
+nom_carpeta_model = "OUTPUT_" + nom
 
 
 def signal_handler(sig, frame):
@@ -79,6 +77,7 @@ def signal_handler(sig, frame):
     print("\nSaliendo del programa...")
     sys.exit(0)
 
+
 def parse_args():
     """
     Función para parsear los argumentos de entrada
@@ -86,26 +85,34 @@ def parse_args():
     parse = argparse.ArgumentParser(description="Practica de algoritmos de clasificación de datos.")
     parse.add_argument("-m", "--mode", help="Modo de ejecución (train o test)", required=True)
     parse.add_argument("-f", "--file", help="Fichero csv (/Path_to_file)", required=True)
-    parse.add_argument("-a", "--algorithm", help="Algoritmo a ejecutar (kNN, decision_tree o random_forest)", required=True)
+    parse.add_argument("-a", "--algorithm", help="Algoritmo a ejecutar (kNN, decision_tree o random_forest)",
+                       required=True)
     parse.add_argument("-p", "--prediction", help="Columna a predecir (Nombre de la columna)", required=True)
-    parse.add_argument("-e", "--estimator", help="Estimador a utilizar para elegir el mejor modelo https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter", required=False, default=None)
-    parse.add_argument("-c", "--cpu", help="Número de CPUs a utilizar [-1 para usar todos]", required=False, default=-1, type=int)
-    parse.add_argument("-v", "--verbose", help="Muestra las metricas por la terminal", required=False, default=False, action="store_true")
-    parse.add_argument("--debug", help="Modo debug [Muestra informacion extra del preprocesado y almacena el resultado del mismo en un .csv]", required=False, default=False, action="store_true")
+    parse.add_argument("-e", "--estimator",
+                       help="Estimador a utilizar para elegir el mejor modelo https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter",
+                       required=False, default=None)
+    parse.add_argument("-c", "--cpu", help="Número de CPUs a utilizar [-1 para usar todos]", required=False, default=-1,
+                       type=int)
+    parse.add_argument("-v", "--verbose", help="Muestra las metricas por la terminal", required=False, default=False,
+                       action="store_true")
+    parse.add_argument("--debug",
+                       help="Modo debug [Muestra informacion extra del preprocesado y almacena el resultado del mismo en un .csv]",
+                       required=False, default=False, action="store_true")
     # Parseamos los argumentos
     args = parse.parse_args()
-    
+
     # Leemos los parametros del JSON
     with open('clasificador.json') as json_file:
         config = json.load(json_file)
-    
+
     # Juntamos todo en una variable
     for key, value in config.items():
         setattr(args, key, value)
-    
+
     # Parseamos los argumentos
     return args
-    
+
+
 def load_data(file):
     """
     Función para cargar los datos de un fichero csv
@@ -114,12 +121,13 @@ def load_data(file):
     """
     try:
         data = pd.read_csv(file, encoding='utf-8')
-        print(Fore.GREEN+"Datos cargados con éxito"+Fore.RESET)
+        print(Fore.GREEN + "Datos cargados con éxito" + Fore.RESET)
         return data
     except Exception as e:
-        print(Fore.RED+"Error al cargar los datos"+Fore.RESET)
+        print(Fore.RED + "Error al cargar los datos" + Fore.RESET)
         print(e)
         sys.exit(1)
+
 
 # Funciones para calcular métricas
 
@@ -135,6 +143,7 @@ def calculate_fscore(y_test, y_pred):
     fscore_macro = f1_score(y_test, y_pred, average='macro')
     return fscore_micro, fscore_macro
 
+
 def calculate_precision(y_test, y_pred):
     """
     Función para calcular la precision
@@ -147,6 +156,7 @@ def calculate_precision(y_test, y_pred):
     precision_macro = precision_score(y_test, y_pred, average='macro')
     return precision_micro, precision_macro
 
+
 def calculate_accuracy(y_test, y_pred):
     """
     Función para calcular el accuracy
@@ -156,6 +166,7 @@ def calculate_accuracy(y_test, y_pred):
     from sklearn.metrics import accuracy_score
     accuracy = accuracy_score(y_test, y_pred)
     return accuracy
+
 
 def calculate_recall(y_test, y_pred):
     """
@@ -168,6 +179,7 @@ def calculate_recall(y_test, y_pred):
     recall_micro = recall_score(y_test, y_pred, average='micro')
     recall_macro = recall_score(y_test, y_pred, average='macro')
     return recall_micro, recall_macro
+
 
 def calculate_confusion_matrix(y_test, y_pred):
     """
@@ -196,21 +208,28 @@ def select_features():
         # Numerical features
         numerical_feature = data.select_dtypes(include=['int64', 'float64'])  # Columnas numéricas
         numerical_feature.columns = numerical_feature.columns.astype(str)
+
+        # Drop the prediction column if it's in numerical features
         if args.prediction in numerical_feature.columns:
             numerical_feature = numerical_feature.drop(columns=[args.prediction])
+
         # Categorical features
         categorical_feature = data.select_dtypes(include='object')
         categorical_feature.columns = categorical_feature.columns.astype(str)
+
+        # Filter categorical features based on the unique category threshold
         categorical_feature = categorical_feature.loc[:,
-                              categorical_feature.nunique() <= args.preprocessing[
-                                  "unique_category_threshold"]]  # Si en el JSON no existe este apartado, añadirlo manualmente aqui
-        # Por defecto usar mejor 10 proque significa que la columna tiene 10 valores o menos
+                              categorical_feature.nunique() <= args.preprocessing["unique_category_threshold"]]
 
-        # Text features
-
-
-        text_feature = data.select_dtypes(include='object').drop(columns=categorical_feature.columns)
+        # Text features: Whatever is left after numerical and categorical
+        # First, get all object columns
+        all_object_columns = data.select_dtypes(include='object').columns
+        # Then, exclude columns already classified as categorical
+        text_feature_columns = set(all_object_columns) - set(categorical_feature.columns)
+        # Finally, select these columns from the original data
+        text_feature = data[list(text_feature_columns)]
         text_feature.columns = text_feature.columns.astype(str)
+
         print(Fore.GREEN + "Datos separados con éxito" + Fore.RESET)
 
         if args.debug:
@@ -222,10 +241,9 @@ def select_features():
 
             print(Fore.MAGENTA + "> Columnas categóricas:\n" + Fore.RESET, categorical_feature.columns)
             print(categorical_feature)
-        print(numerical_feature)
-        print(text_feature)
-        print(categorical_feature)
+
         return numerical_feature, text_feature, categorical_feature
+
     except Exception as e:
         print(Fore.RED + "Error al separar los datos" + Fore.RESET)
         print(e)
@@ -280,10 +298,9 @@ def process_missing_values(numerical_feature, categorical_feature):
     categorical_feature[:] = categorical_imputer.fit_transform(categorical_feature)
     '''
 
-
     # Eliminar filas que contengan NaN después del reemplazo
-    #numerical_feature.dropna(inplace=True)
-    #categorical_feature.dropna(inplace=True)
+    # numerical_feature.dropna(inplace=True)
+    # categorical_feature.dropna(inplace=True)
 
     print("Valores faltantes procesado exitosamente.")
 
@@ -481,42 +498,40 @@ def preprocesar_datos(data):
     :return: Datos preprocesados y divididos en train y test
     """
 
-    if args.algorithm == "kNN":
+
         # Separamos los datos por tipos
-        numerical_feature, text_feature, categorical_feature = select_features()
+    numerical_feature, text_feature, categorical_feature = select_features()
 
         # Simplificamos el texto
+    if not text_feature.empty:
         simplify_text(text_feature)
 
         # Pasar los datos a categoriales a numéricos
+    if not categorical_feature.empty:
         cat2num(categorical_feature)
 
         # Tratamos missing values
 
-
         # Reescalamos los datos numéricos
+    if not numerical_feature.empty:
         reescaler(numerical_feature)
 
         # Tratamos el texto
-        if not text_feature.empty:
-            process_text(text_feature)
+    if not text_feature.empty:
+        process_text(text_feature)
 
         # Realizamos Oversampling o Undersampling
-        over_under_sampling()
+    over_under_sampling()
 
-        if args.preprocessing["drop_features"] != " ":
-            drop_features()
-        process_missing_values(numerical_feature, categorical_feature)
-    else:
-        numerical_feature, text_feature, categorical_feature = select_features()
-        cat2num(categorical_feature)
-        process_missing_values(numerical_feature, categorical_feature)
+    if args.preprocessing["drop_features"] != " ":
+        drop_features()
+    process_missing_values(numerical_feature, categorical_feature)
+
 
     return data
 
 
 # Funciones para entrenar un modelo
-
 
 
 def divide_data():
@@ -560,8 +575,8 @@ def divide_data():
             print(Fore.MAGENTA + f"> Tamaño del conjunto de prueba: {x_test.shape}" + Fore.RESET)
 
         # Guardar los .csv del test para luego usarlos en el predict
-        x_test.to_csv(nom_carpeta_model+"/X_test.csv", index=False)
-        y_test.to_csv(nom_carpeta_model+"/y_test.csv", index=False)
+        x_test.to_csv(nom_carpeta_model + "/X_test.csv", index=False)
+        y_test.to_csv(nom_carpeta_model + "/y_test.csv", index=False)
 
         return x_train, x_val, y_train, y_val
 
@@ -569,6 +584,7 @@ def divide_data():
         print(Fore.RED + "Error al dividir los datos" + Fore.RESET)
         print(e)
         sys.exit(1)
+
 
 def save_model(gs):
     """
@@ -583,17 +599,18 @@ def save_model(gs):
     """
     try:
         ##CAMBIAR AL MODELO QUE SEA EN EL EXAMEN
-        with open(nom_carpeta_model+'/'+nom_modelo, 'wb') as file:
+        with open(nom_carpeta_model + '/' + nom_modelo, 'wb') as file:
             pickle.dump(gs, file)
-            print(Fore.CYAN+"Modelo guardado con éxito"+Fore.RESET)
-        with open(nom_carpeta_model+'/'+nom_modelo_csv, 'w') as file:
+            print(Fore.CYAN + "Modelo guardado con éxito" + Fore.RESET)
+        with open(nom_carpeta_model + '/' + nom_modelo_csv, 'w') as file:
             writer = csv.writer(file)
             writer.writerow(['Params', 'Score'])
             for params, score in zip(gs.cv_results_['params'], gs.cv_results_['mean_test_score']):
                 writer.writerow([params, score])
     except Exception as e:
-        print(Fore.RED+"Error al guardar el modelo"+Fore.RESET)
+        print(Fore.RED + "Error al guardar el modelo" + Fore.RESET)
         print(e)
+
 
 def mostrar_resultados(gs, x_dev, y_dev):
     """
@@ -613,12 +630,15 @@ def mostrar_resultados(gs, x_dev, y_dev):
     - Matriz de confusión del clasificador en el conjunto de desarrollo.
     """
     if args.verbose:
-        print(Fore.MAGENTA+"> Mejores parametros:\n"+Fore.RESET, gs.best_params_)
-        print(Fore.MAGENTA+"> Mejor puntuacion:\n"+Fore.RESET, gs.best_score_)
-        print(Fore.MAGENTA+"> F1-score micro:\n"+Fore.RESET, calculate_fscore(y_dev, gs.predict(x_dev))[0])
-        print(Fore.MAGENTA+"> F1-score macro:\n"+Fore.RESET, calculate_fscore(y_dev, gs.predict(x_dev))[1])
-        print(Fore.MAGENTA+"> Informe de clasificación:\n"+Fore.RESET, classification_report(y_dev, gs.predict(x_dev)))
-        print(Fore.MAGENTA+"> Matriz de confusión:\n"+Fore.RESET, calculate_confusion_matrix(y_dev, gs.predict(x_dev)))
+        print(Fore.MAGENTA + "> Mejores parametros:\n" + Fore.RESET, gs.best_params_)
+        print(Fore.MAGENTA + "> Mejor puntuacion:\n" + Fore.RESET, gs.best_score_)
+        print(Fore.MAGENTA + "> F1-score micro:\n" + Fore.RESET, calculate_fscore(y_dev, gs.predict(x_dev))[0])
+        print(Fore.MAGENTA + "> F1-score macro:\n" + Fore.RESET, calculate_fscore(y_dev, gs.predict(x_dev))[1])
+        print(Fore.MAGENTA + "> Informe de clasificación:\n" + Fore.RESET,
+              classification_report(y_dev, gs.predict(x_dev)))
+        print(Fore.MAGENTA + "> Matriz de confusión:\n" + Fore.RESET,
+              calculate_confusion_matrix(y_dev, gs.predict(x_dev)))
+
 
 def kNN():
     """
@@ -631,8 +651,8 @@ def kNN():
     :rtype: tuple
     """
     # Dividimos los datos en entrenamiento y dev
-    x_train, x_dev, y_train, y_dev  = divide_data()
-    
+    x_train, x_dev, y_train, y_dev = divide_data()
+
     # Hacemos un barrido de hiperparametros
 
     with tqdm(total=100, desc='Procesando kNN', unit='iter', leave=True) as pbar:
@@ -642,18 +662,19 @@ def kNN():
         end_time = time.time()
         for i in range(100):
             time.sleep(random.uniform(0.06, 0.15))  # Esperamos un tiempo aleatorio
-            pbar.update(random.random()*2)  # Actualizamos la barra con un valor aleatorio
+            pbar.update(random.random() * 2)  # Actualizamos la barra con un valor aleatorio
         pbar.n = 100
         pbar.last_print_n = 100
         pbar.update(0)
     execution_time = end_time - start_time
-    print("Tiempo de ejecución:"+Fore.MAGENTA, execution_time,Fore.RESET+ "segundos")
-    
+    print("Tiempo de ejecución:" + Fore.MAGENTA, execution_time, Fore.RESET + "segundos")
+
     # Mostramos los resultados
     mostrar_resultados(gs, x_dev, y_dev)
-    
+
     # Guardamos el modelo utilizando pickle
     save_model(gs)
+
 
 def decision_tree():
     """
@@ -666,24 +687,25 @@ def decision_tree():
     """
     # Dividimos los datos en entrenamiento y dev
     x_train, x_dev, y_train, y_dev = divide_data()
-    
+
     # Hacemos un barrido de hiperparametros
     with tqdm(total=100, desc='Procesando decision tree', unit='iter', leave=True) as pbar:
-        #TODO Llamar al decision trees
-        gs = GridSearchCV(DecisionTreeClassifier(),args.decission_tree, cv=5, n_jobs=args.cpu, scoring=args.estimator)
+        # TODO Llamar al decision trees
+        gs = GridSearchCV(DecisionTreeClassifier(), args.decission_tree, cv=5, n_jobs=args.cpu, scoring=args.estimator)
         start_time = time.time()
         gs.fit(x_train, y_train)
         end_time = time.time()
 
     execution_time = end_time - start_time
-    print("Tiempo de ejecución:"+Fore.MAGENTA, execution_time,Fore.RESET+ "segundos")
-    
+    print("Tiempo de ejecución:" + Fore.MAGENTA, execution_time, Fore.RESET + "segundos")
+
     # Mostramos los resultados
     mostrar_resultados(gs, x_dev, y_dev)
-    
+
     # Guardamos el modelo utilizando pickle
     save_model(gs)
-    
+
+
 def random_forest():
     """
     Función que entrena un modelo de Random Forest utilizando GridSearchCV para encontrar los mejores hiperparámetros.
@@ -696,10 +718,10 @@ def random_forest():
     Retorna:
         Ninguno
     """
-    
+
     # Dividimos los datos en entrenamiento y dev
     x_train, x_dev, y_train, y_dev = divide_data()
-    
+
     # Hacemos un barrido de hiperparametros
     with tqdm(total=100, desc='Procesando random forest', unit='iter', leave=True) as pbar:
         gs = GridSearchCV(RandomForestClassifier(), args.random_forest, cv=5, n_jobs=args.cpu, scoring=args.estimator)
@@ -707,14 +729,13 @@ def random_forest():
         gs.fit(x_train, y_train)
         end_time = time.time()
     execution_time = end_time - start_time
-    print("Tiempo de ejecución:"+Fore.MAGENTA, execution_time,Fore.RESET+ "segundos")
-    
+    print("Tiempo de ejecución:" + Fore.MAGENTA, execution_time, Fore.RESET + "segundos")
+
     # Mostramos los resultados
     mostrar_resultados(gs, x_dev, y_dev)
-    
+
     # Guardamos el modelo utilizando pickle
     save_model(gs)
-
 
 
 def load_model():
@@ -728,15 +749,16 @@ def load_model():
         Exception: Si ocurre un error al cargar el modelo.
     """
     try:
-        with open(nom_carpeta_model+'/'+nom_modelo, 'rb') as file:
+        with open(nom_carpeta_model + '/' + nom_modelo, 'rb') as file:
             model = pickle.load(file)
-            print(Fore.GREEN+"Modelo cargado con éxito"+Fore.RESET)
+            print(Fore.GREEN + "Modelo cargado con éxito" + Fore.RESET)
             return model
     except Exception as e:
-        print(Fore.RED+"Error al cargar el modelo"+Fore.RESET)
+        print(Fore.RED + "Error al cargar el modelo" + Fore.RESET)
         print(e)
         sys.exit(1)
-        
+
+
 def predict():
     """
     Realiza una predicción utilizando el modelo entrenado y guarda los resultados en un archivo CSV.
@@ -747,9 +769,8 @@ def predict():
     Retorna:
         Ninguno
     """
-    X_test = pd.read_csv(nom_carpeta_model+"/X_test.csv")
-    y_test = pd.read_csv(nom_carpeta_model+"/y_test.csv")
-
+    X_test = pd.read_csv(nom_carpeta_model + "/X_test.csv")
+    y_test = pd.read_csv(nom_carpeta_model + "/y_test.csv")
 
     model = load_model()
 
@@ -759,23 +780,26 @@ def predict():
 
     # Realizar predicción
     prediction = model.predict(X_test)
-    print(args.prediction+"_pred")
+    print(args.prediction + "_pred")
     # Guardar las predicciones en un CSV
     X_test[args.prediction + "_pred"] = prediction
     print(X_test.columns)
-    X_test.to_csv(nom_carpeta_model+"/"+nom_pred_csv, index=False)
+    X_test.to_csv(nom_carpeta_model + "/" + nom_pred_csv, index=False)
 
-    print(Fore.GREEN + "[INFO] Predicción completada y guardada en "+nom_carpeta_model+"/"+nom_pred_csv+""+ Fore.RESET)
+    print(
+        Fore.GREEN + "[INFO] Predicción completada y guardada en " + nom_carpeta_model + "/" + nom_pred_csv + "" + Fore.RESET)
 
     # Evaluar si existe y_test
     try:
-        y_test = pd.read_csv(nom_carpeta_model+"/y_test.csv")
+        y_test = pd.read_csv(nom_carpeta_model + "/y_test.csv")
         accuracy = accuracy_score(y_test, prediction)
         print(Fore.CYAN + f"[INFO] Precisión en test: {accuracy:.4f}" + Fore.RESET)
-        print(Fore.CYAN + "[INFO] Reporte de clasificación:\n" + Fore.RESET, classification_report(y_test, prediction, zero_division= 1))
+        print(Fore.CYAN + "[INFO] Reporte de clasificación:\n" + Fore.RESET,
+              classification_report(y_test, prediction, zero_division=1))
     except FileNotFoundError:
         print(Fore.YELLOW + "[WARNING] No se encontró 'y_test.csv'. Solo se guardaron las predicciones." + Fore.RESET)
-    
+
+
 # Función principal
 import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
@@ -789,14 +813,14 @@ if __name__ == "__main__":
     # Parseamos los argumentos
     args = parse_args()
     # Si la carpeta output no existe la creamos
-    print("\n- Creando carpeta "+nom_carpeta_model+"...")
+    print("\n- Creando carpeta " + nom_carpeta_model + "...")
     try:
         os.makedirs(nom_carpeta_model)
-        print(Fore.GREEN+"Carpeta"+nom_carpeta_model+"creada con éxito"+Fore.RESET)
+        print(Fore.GREEN + "Carpeta" + nom_carpeta_model + "creada con éxito" + Fore.RESET)
     except FileExistsError:
-        print(Fore.GREEN+"La carpeta "+nom_carpeta_model+" ya existe"+Fore.RESET)
+        print(Fore.GREEN + "La carpeta " + nom_carpeta_model + " ya existe" + Fore.RESET)
     except Exception as e:
-        print(Fore.RED+"Error al crear la carpeta "+nom_carpeta_model+" "+Fore.RESET)
+        print(Fore.RED + "Error al crear la carpeta " + nom_carpeta_model + " " + Fore.RESET)
         print(e)
         sys.exit(1)
     # Cargamos los datos
@@ -814,36 +838,36 @@ if __name__ == "__main__":
     if args.debug:
         try:
             print("\n- Guardando datos preprocesados...")
-            data.to_csv(nom_carpeta_model+'/data-processed.csv', index=False)
-            print(Fore.GREEN+"Datos preprocesados guardados con éxito"+Fore.RESET)
+            data.to_csv(nom_carpeta_model + '/data-processed.csv', index=False)
+            print(Fore.GREEN + "Datos preprocesados guardados con éxito" + Fore.RESET)
         except Exception as e:
-            print(Fore.RED+"Error al guardar los datos preprocesados"+Fore.RESET)
+            print(Fore.RED + "Error al guardar los datos preprocesados" + Fore.RESET)
     if args.mode == "train":
         # Ejecutamos el algoritmo seleccionado
         print("\n- Ejecutando algoritmo...")
         if args.algorithm == "kNN":
             try:
                 kNN()
-                print(Fore.GREEN+"Algoritmo kNN ejecutado con éxito"+Fore.RESET)
+                print(Fore.GREEN + "Algoritmo kNN ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
         elif args.algorithm == "decission_tree":
             try:
                 decision_tree()
-                print(Fore.GREEN+"Algoritmo árbol de decisión ejecutado con éxito"+Fore.RESET)
+                print(Fore.GREEN + "Algoritmo árbol de decisión ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
         elif args.algorithm == "random_forest":
             try:
                 random_forest()
-                print(Fore.GREEN+"Algoritmo random forest ejecutado con éxito"+Fore.RESET)
+                print(Fore.GREEN + "Algoritmo random forest ejecutado con éxito" + Fore.RESET)
                 sys.exit(0)
             except Exception as e:
                 print(e)
         else:
-            print(Fore.RED+"Algoritmo no soportado"+Fore.RESET)
+            print(Fore.RED + "Algoritmo no soportado" + Fore.RESET)
             sys.exit(1)
     elif args.mode == "test":
         # Cargamos el modelo
@@ -853,14 +877,14 @@ if __name__ == "__main__":
         print("\n- Prediciendo...")
         try:
             predict()
-            print(Fore.GREEN+"Predicción realizada con éxito"+Fore.RESET)
+            print(Fore.GREEN + "Predicción realizada con éxito" + Fore.RESET)
             # Guardamos el dataframe con la prediccion
-            print(Fore.GREEN+"Predicción guardada con éxito"+Fore.RESET)
+            print(Fore.GREEN + "Predicción guardada con éxito" + Fore.RESET)
 
             sys.exit(0)
         except Exception as e:
             print(e)
             sys.exit(1)
     else:
-        print(Fore.RED+"Modo no soportado"+Fore.RESET)
+        print(Fore.RED + "Modo no soportado" + Fore.RESET)
         sys.exit(1)
