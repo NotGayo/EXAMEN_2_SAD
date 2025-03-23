@@ -1,0 +1,15 @@
+=======================
+ANTES DE QUITAR EL WIFI
+=======================
+
+Python -m nltk.downloader stopwords punkt punkt_tab wordnet
+
+==================
+PONER EN EL CODIGO
+==================
+
+(Quitar/Comentar los nltk.download)
+
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.corpus import wordnet
